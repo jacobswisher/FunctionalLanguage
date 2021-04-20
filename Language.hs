@@ -7,25 +7,37 @@ import Fact
 
 
 
-
-eval :: Env -> Expr -> Maybe Value
-eval (Env xs) (Var name)   = lookup name xs
-eval env (App (Lam n1 e1) e2) = eval env (Let n1 e2 e1)
-eval env (App e1 e2)      = case (eval env e1, eval env e2) of
-      (Just (VClosure (Lam n1 e3) (Env xs)), Just v) -> eval (Env ((n1, v):xs)) e3
-      _                                              -> Nothing
-eval env@(Env xs) lam@(Lam n1 e1)    = Just $ VClosure lam env
-eval env@(Env xs) (Let n1 e1 e2) = if isNothing $ eval env e1 then Nothing else eval (Env ((n1, unMaybe (eval env e1)):xs)) e2
-eval env (Lit (LInt val))  = Just $ VInt  val
-eval env (Lit (LBool val)) = Just $ VBool val
-eval env (If e1 e2 e3)     = case eval env e1 of
-                               Just (VBool True)  -> eval env e2
-                               Just (VBool False) -> eval env e3
+cbn :: Env -> Expr -> Maybe Value
+cbn (Env xs) (Var name)   = lookup name xs
+-- cbn env (App (Lam n1 e1) e2) =  cbn env (substExpr (n1, e2) e1)
+cbn env (App e1 e2) = case cbn env e1 of
+  Just (VClosure (Lam n1 e3) env2) -> cbn env2 (substExpr (n1, e2) e3)
+  _                                -> Nothing
+cbn env lam@(Lam n1 e1) = Just $ VClosure lam env
+cbn env@(Env xs) (Let n1 e1 e2)  = cbn env (substExpr (n1, e1) e2)
+cbn env (Lit (LInt val))  = Just $ VInt  val
+cbn env (Lit (LBool val)) = Just $ VBool val
+cbn env (Lit (LString val)) = Just $ VBool val
+cbn env (If e1 e2 e3)     = case cbn env e1 of
+                               Just (VBool True)  -> cbn env e2
+                               Just (VBool False) -> cbn env e3
                                _                  -> Nothing
-eval env (Fix e1)          = eval env (App e1 (Fix e1))
-eval env (Op b1 e1 e2)     = do v1 <- eval env e1
-                                v2 <- eval env e2
-                                binop b1 v1 v2
+cbn env (Fix e1)          = cbn env (App e1 (Fix e1))
+cbn env (Op b1 e1 e2)     = do v1 <- cbn env e1
+                               v2 <- cbn env e2
+                               binop b1 v1 v2
+cbn env (Pair e1 e2) = do v1 <- cbn env e1
+                          v2 <- cbn env e2
+                          Just $ VPair v1 v2
+cbn env (Fst e) = case cbn env e of
+                    Just (VPair e1 e2) -> e1
+                    _                  -> Nothing
+cbn env (Snd e) = case cbn env e of
+                    Just (VPair e1 e2) -> e2
+                    _                  -> Nothing
+
+
+
 
 --unsafe must check for nothing first
 unMaybe :: Maybe a -> a
@@ -44,16 +56,19 @@ extend :: TypeEnv -> (Name, Scheme) -> TypeEnv
 extend (TypeEnv cxt) decl = TypeEnv (decl:cxt)
 
 fv :: Expr -> [TVar]
-fv (Var name)       = [(TV name)]
-fv (App e1 e2)      = nub $ (fv e1) ++ (fv e2)
-fv (Lit _)          = []
-fv (If e1 e2 e3)    = nub $ (fv e1) ++ (fv e2) ++ (fv e3)
-fv (Fix expr)       = fv expr
-fv (Op binop e1 e2) = nub $ (fv e1) ++ (fv e2)
-fv (Lam name expr)  = filter p (fv expr)
+fv (Var name)        = [(TV name)]
+fv (App e1 e2)       = nub $ (fv e1) ++ (fv e2)
+fv (Lit _)           = []
+fv (If e1 e2 e3)     = nub $ (fv e1) ++ (fv e2) ++ (fv e3)
+fv (Fix expr)        = fv expr
+fv (Op binop e1 e2)  = nub $ (fv e1) ++ (fv e2)
+fv (Lam name expr)   = filter p (fv expr)
   where p (TV name') = name' /= name
-fv (Let name e1 e2) = nub $ (fv e1) ++ (filter p (fv e2))
+fv (Let name e1 e2)  = nub $ (fv e1) ++ (filter p (fv e2))
   where p (TV name') = name' /= name
+fv (Pair e1 e2)      = nub $ (fv e1) ++ (fv e2)
+fv (Fst e)           = fv e
+fv (Snd e)           = fv e
 
 ftv :: Type -> [TVar]
 ftv (TVar tvar)  = [(tvar)]
@@ -64,8 +79,6 @@ ftvs :: Scheme -> [TVar]
 ftvs (Base t) = ftv t
 ftvs (Forall (TV var) scheme) = filter p (ftvs scheme)
             where p (TV name) = name /= var
-
-
 
 
 fresh :: String -> [String] -> String
@@ -95,8 +108,9 @@ substExpr p@(n1,e1) (Let n2 e2 e3)  | n2 /= n1 && (not $ (TV n2) `elem` (fv e1))
                                     | n2 == n1  = Let n2 (substExpr p e2) e3
                                     | otherwise = Let n3 (substExpr p e2) (substExpr p (substExpr (n2, Var n3) e3))
                                        where n3 = fresh n1 (map unTV (fv e1 ++ fv e2))
-
-
+substExpr p (Pair e1 e2) = Pair $ (substExpr p e1) (substExpr p e2)
+substExpr p (Fst e)      = Fst  $ (substExpr p e)
+substExpr p (Snd e)      = Snd  $ (substExpr p e)
 
 substType :: (TVar, Type) -> Type -> Type
 substType (t1, tp) (TVar t2) | t1 == t2  = tp

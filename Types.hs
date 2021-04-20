@@ -9,20 +9,25 @@ data Expr
   | If Expr Expr Expr
   | Fix Expr
   | Op Binop Expr Expr
+  | Pair Expr Expr
+  | Fst Expr
+  | Snd Expr
   deriving (Show, Eq, Ord)
 
 newtype TVar = TV String
   deriving (Show, Eq, Ord)
 
 data Type
-  = TVar TVar
-  | TCon String
-  | TArr Type Type
+  = TVar  TVar
+  | TCon  String
+  | TArr  Type Type
+  | TProd Type Type
   deriving (Show, Eq, Ord)
 
 data Lit
   = LInt Integer
   | LBool Bool
+  | LString String 
   deriving (Show, Eq, Ord)
 
 data Binop = Add | Sub | Mul | Eql
@@ -30,7 +35,7 @@ data Binop = Add | Sub | Mul | Eql
 
 
 
-data Value = VInt Integer | VBool Bool | VClosure Expr Env deriving Show
+data Value = VInt Integer | VBool Bool | VClosure Expr Env | VPair Value Value deriving Show
 
 data Program = Program [Decl] Expr deriving Eq
 
@@ -42,6 +47,7 @@ type Name = String
 
 newtype TypeEnv = TypeEnv [(Name, Scheme)]
 newtype Env = Env [(Name, Value)] deriving Show
+
 
 
 
