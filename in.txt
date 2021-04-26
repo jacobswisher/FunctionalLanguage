@@ -1,0 +1,19 @@
+
+
+!!func:(int f, bool b){
+!!if (b) then f+2 else f
+!!}
+!!this is a comment
+!!car:(){
+!!|Ford_Mustang|
+!!}
+
+!!c:(){func a b}
+
+!!b:(){true}
+
+a:(){5}
+
+main:(int arg){
+return a
+}

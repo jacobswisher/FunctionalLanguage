@@ -12,6 +12,7 @@ data Expr
   | Pair Expr Expr
   | Fst Expr
   | Snd Expr
+  | Return Expr
   deriving (Show, Eq, Ord)
 
 newtype TVar = TV String
@@ -25,9 +26,10 @@ data Type
   deriving (Show, Eq, Ord)
 
 data Lit
-  = LInt Integer
-  | LBool Bool
-  | LString String 
+  = LInt    Integer
+  | LBool   Bool
+  | LString String
+  | LFloat  Double
   deriving (Show, Eq, Ord)
 
 data Binop = Add | Sub | Mul | Eql
@@ -35,11 +37,11 @@ data Binop = Add | Sub | Mul | Eql
 
 
 
-data Value = VInt Integer | VBool Bool | VClosure Expr Env | VPair Value Value deriving Show
+data Value = VInt Integer | VBool Bool | VFloat Double | VString String | VClosure Expr Env | VPair Value Value deriving Show
 
 data Program = Program [Decl] Expr deriving Eq
 
-type Decl = (String, Expr)
+type Decl = (Name, Expr)
 
 data Scheme = Base Type | Forall TVar Scheme
 

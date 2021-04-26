@@ -7,6 +7,7 @@ import Fact
 
 
 
+
 cbn :: Env -> Expr -> Maybe Value
 cbn (Env xs) (Var name)   = lookup name xs
 -- cbn env (App (Lam n1 e1) e2) =  cbn env (substExpr (n1, e2) e1)
@@ -15,13 +16,14 @@ cbn env (App e1 e2) = case cbn env e1 of
   _                                -> Nothing
 cbn env lam@(Lam n1 e1) = Just $ VClosure lam env
 cbn env@(Env xs) (Let n1 e1 e2)  = cbn env (substExpr (n1, e1) e2)
-cbn env (Lit (LInt val))  = Just $ VInt  val
-cbn env (Lit (LBool val)) = Just $ VBool val
-cbn env (Lit (LString val)) = Just $ VBool val
-cbn env (If e1 e2 e3)     = case cbn env e1 of
-                               Just (VBool True)  -> cbn env e2
-                               Just (VBool False) -> cbn env e3
-                               _                  -> Nothing
+cbn env (Lit (LInt val))    = Just $ VInt    val
+cbn env (Lit (LBool val))   = Just $ VBool   val
+cbn env (Lit (LString val)) = Just $ VString val
+cbn env (Lit (LFloat val))  = Just $ VFloat  val
+cbn env (If e1 e2 e3)       = case cbn env e1 of
+                                 Just (VBool True)  -> cbn env e2
+                                 Just (VBool False) -> cbn env e3
+                                 _                  -> Nothing
 cbn env (Fix e1)          = cbn env (App e1 (Fix e1))
 cbn env (Op b1 e1 e2)     = do v1 <- cbn env e1
                                v2 <- cbn env e2
@@ -30,25 +32,50 @@ cbn env (Pair e1 e2) = do v1 <- cbn env e1
                           v2 <- cbn env e2
                           Just $ VPair v1 v2
 cbn env (Fst e) = case cbn env e of
-                    Just (VPair e1 e2) -> e1
+                    Just (VPair e1 e2) -> Just e1
                     _                  -> Nothing
 cbn env (Snd e) = case cbn env e of
-                    Just (VPair e1 e2) -> e2
+                    Just (VPair e1 e2) -> Just e2
                     _                  -> Nothing
-
-
-
 
 --unsafe must check for nothing first
 unMaybe :: Maybe a -> a
 unMaybe (Just x) = x
 
 
+declToEnv xs = Env $ declToEnv' xs
+
+declToEnv' :: [Decl] -> [(Name, Value)]
+declToEnv' [] = []
+declToEnv' ((name, Lit (LInt i)):xs) = ((name, VInt i):(declToEnv' xs))
+declToEnv' ((name, Lit (LBool i)):xs) = ((name, VBool i):(declToEnv' xs))
+declToEnv' ((name, Lit (LString i)):xs) = ((name, VString i):(declToEnv' xs))
+declToEnv' ((name, Lit (LFloat i)):xs) = ((name, VFloat i):(declToEnv' xs))
+declToEnv' ((name, Lam n e):xs) = ((name, VClosure e (Env [])):(declToEnv' xs))
+declToEnv' ((name, Pair i1 i2):xs) = ((name, VPair (exprToValue i1) (exprToValue i2)):(declToEnv' xs))
+
+exprToValue :: Expr -> Value
+exprToValue (Lit (LInt i)) = VInt i
+exprToValue (Lit (LBool i)) = VBool i
+exprToValue (Lit (LString i)) = VString i
+exprToValue (Lit (LFloat i)) = VFloat i
+exprToValue (Pair e1 e2)  = VPair (exprToValue e1) (exprToValue e2)
+
+
+
+
+
+
+
 binop :: Binop -> Value -> Value -> Maybe Value
-binop Add (VInt val1) (VInt val2)   = Just . VInt  $ val1 + val2
-binop Sub (VInt val1) (VInt val2)   = Just . VInt  $ val1 - val2
-binop Mul (VInt val1) (VInt val2)   = Just . VInt  $ val1 * val2
-binop Eql (VInt val1) (VInt val2)   = Just . VBool $ val1 == val2
+binop Add (VInt val1) (VInt val2) = Just . VInt  $ val1 + val2
+binop Sub (VInt val1) (VInt val2) = Just . VInt  $ val1 - val2
+binop Mul (VInt val1) (VInt val2) = Just . VInt  $ val1 * val2
+binop Eql (VInt val1) (VInt val2) = Just . VBool $ val1 == val2
+binop Add (VFloat val1) (VFloat val2) = Just . VFloat  $ val1 + val2
+binop Sub (VFloat val1) (VFloat val2) = Just . VFloat  $ val1 - val2
+binop Mul (VFloat val1) (VFloat val2) = Just . VFloat  $ val1 * val2
+binop Eql (VFloat val1) (VFloat val2) = Just . VBool $ val1 == val2
 binop Eql (VBool val1) (VBool val2) = Just . VBool $ val1 == val2
 binop _ _ _                         = Nothing
 
@@ -108,7 +135,7 @@ substExpr p@(n1,e1) (Let n2 e2 e3)  | n2 /= n1 && (not $ (TV n2) `elem` (fv e1))
                                     | n2 == n1  = Let n2 (substExpr p e2) e3
                                     | otherwise = Let n3 (substExpr p e2) (substExpr p (substExpr (n2, Var n3) e3))
                                        where n3 = fresh n1 (map unTV (fv e1 ++ fv e2))
-substExpr p (Pair e1 e2) = Pair $ (substExpr p e1) (substExpr p e2)
+substExpr p (Pair e1 e2) = Pair (substExpr p e1) (substExpr p e2)
 substExpr p (Fst e)      = Fst  $ (substExpr p e)
 substExpr p (Snd e)      = Snd  $ (substExpr p e)
 
@@ -135,14 +162,6 @@ substTypeList = fmap . substType
 substTypeEnv :: (TVar, Type) -> TypeEnv -> TypeEnv
 substTypeEnv s (TypeEnv env) = TypeEnv $ map f env
                             where f (x,t) = (x, substScheme s t)
-
-
-
-
-
-
-
-
 
 
 
