@@ -6,11 +6,29 @@ import Data.Maybe
 import Fact
 
 
+removeReturn :: [Decl] -> [Decl]
+removeReturn [] = []
+removeReturn (("return", e):xs) = xs
+removeReturn (x:xs) = x:(removeReturn xs)
+
+getReturn :: [Decl] -> Expr
+getReturn (("return", e):xs) = e
+getReturn (x:xs) = getReturn xs
+
+func1 :: [Decl] -> Expr
+func1 xs = call list ret
+  where list = (removeReturn xs)
+        ret  = (getReturn xs)
+        call [] e = e
+        call (x:xs) e = call xs (substExpr x e)
 
 
 cbn :: Env -> Expr -> Maybe Value
 cbn (Env xs) (Var name)   = lookup name xs
--- cbn env (App (Lam n1 e1) e2) =  cbn env (substExpr (n1, e2) e1)
+cbn (Env xs) (FCall name) = lookup name xs
+-- cbn (Env xs) (App (FCall name) e2) = case lookup name xs of
+--   Just (Lam n1 e3) -> cbn (Env xs) (substExpr (n1, e2) e3)
+--   _                -> Nothing
 cbn env (App e1 e2) = case cbn env e1 of
   Just (VClosure (Lam n1 e3) env2) -> cbn env2 (substExpr (n1, e2) e3)
   _                                -> Nothing
@@ -37,6 +55,7 @@ cbn env (Fst e) = case cbn env e of
 cbn env (Snd e) = case cbn env e of
                     Just (VPair e1 e2) -> Just e2
                     _                  -> Nothing
+
 
 --unsafe must check for nothing first
 unMaybe :: Maybe a -> a
@@ -122,6 +141,8 @@ unTV (TV name) = name
 substExpr :: (Name, Expr) -> Expr -> Expr
 substExpr (name, e1) (Var name') | name == name' = e1
                                  | otherwise     = Var name'
+substExpr (name, e1) (FCall name') | name == name' = e1
+                                   | otherwise     = FCall name'
 substExpr p (App e1 e2) = App (substExpr p e1) (substExpr p e2)
 substExpr p@(n1, e1) (Lam n2 e2) | n2 /= n1 && (not $ (TV n2) `elem` (fv e1)) = Lam n2 (substExpr p e2)
                                  | n2 == n1  = Lam n2 e2

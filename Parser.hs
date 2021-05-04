@@ -3,6 +3,7 @@ module Parser where
 import Types
 import Control.Monad (when)
 import Data.Char
+import Language
 
 main = do
     contents <- readFile "in.txt"
@@ -16,7 +17,7 @@ main = do
 data Token = VSym String | LSym Lit | TSym Type | OpSym Binop
           | LBrace | RBrace | LPar | RPar | Colon | Comma | Period
           | Keyword String | ParsedExpr Expr | Decl Name Type | Error
-          | Func Expr | Defn Name Expr deriving Show
+          | Func Expr | Defn Name Expr | Funcall Name deriving Show
 
 
 
@@ -39,11 +40,13 @@ sr ((Func func):RPar:(ParsedExpr (Var var)):(TSym _):Comma:xs) i = sr (Func (Lam
 sr ((Func func):RPar:(ParsedExpr (Var var)):(TSym _):LPar: xs) i = sr (Func (Lam var func):RPar:xs) i
 sr ((Func func):RPar:LPar:Colon:(VSym fname):xs) i        = sr (Defn fname func:xs) i
 sr ((Func func):RPar:Colon:(VSym fname):xs) i             = sr (Defn fname func:xs) i
-sr ((ParsedExpr e1):(Keyword "return"):xs) i              = sr (ParsedExpr e1:xs) i
+sr ((ParsedExpr func):(Keyword "return"):xs) i            = ("return", func):(sr xs i)
 sr ((Defn fname func):xs) i                               = (fname, func):(sr xs i)
 sr ((VSym name):xs) (Colon:is)                            = sr (Colon:VSym name:xs) is
 sr ((VSym name):xs) i                                     = sr (ParsedExpr (Var name):xs) i
-sr ((ParsedExpr arg):(Func fun):xs) i                     = sr (ParsedExpr (App fun arg):xs) i
+sr (RBrace:LBrace:RPar:LPar:Colon:VSym "main":xs) i       = sr xs i
+sr ((ParsedExpr arg):(Funcall fun):xs) i                  = sr (ParsedExpr (App (FCall fun) arg):xs) i
+sr (ParsedExpr a1:ParsedExpr a2:xs) i                     = sr (ParsedExpr (App a2 a1):xs) i
 sr s (i:is)                                               = sr (i:s) is
 sr [] i                                                   = []
 sr s []                                                   = error("parse stopped at " ++ show s)
@@ -74,7 +77,7 @@ addSpaces ('}':xs) = " } " ++ addSpaces xs
 addSpaces ('{':xs) = " { " ++ addSpaces xs
 addSpaces ('+':xs) = " + " ++ addSpaces xs
 addSpaces ('-':xs) = " - " ++ addSpaces xs
-addSpaces ('=':xs) = " = " ++ addSpaces xs
+addSpaces ('=':'=':xs) = " == " ++ addSpaces xs
 addSpaces (x:xs) = (x:addSpaces xs)
 
 classify :: String -> Token
@@ -105,6 +108,7 @@ classify "if"                    = Keyword "if"
 classify "then"                  = Keyword "then"
 classify "else"                  = Keyword "else"
 classify "return"                = Keyword "return"
+classify ('$':xs)                = Funcall xs
 classify s | isVSym s            = VSym s --Must be last
 classify s = error ("No such keyword or operator: " ++ s)
 

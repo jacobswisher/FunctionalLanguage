@@ -1,7 +1,7 @@
 
 
-!!func:(int f, bool b){
-!!if (b) then f+2 else f
+!!func2:(int f, bool b){
+!!if b then f+2 else f
 !!}
 !!this is a comment
 !!car:(){
@@ -12,8 +12,16 @@
 
 !!b:(){true}
 
-a:(){5}
+!!a:(){5}
 
-main:(int arg){
-return a
+!!g:(int f) {
+!!f * 6
+!!}
+
+fib:(int counter, int current, int previous){
+if (counter == 0) then current else ($fib (counter-1) (current+previous) current)
+}
+
+main:(){
+return ($fib 5 1 1)
 }

@@ -12,7 +12,8 @@ data Expr
   | Pair Expr Expr
   | Fst Expr
   | Snd Expr
-  | Return Expr
+  -- | Return Expr
+  | FCall Name
   deriving (Show, Eq, Ord)
 
 newtype TVar = TV String
