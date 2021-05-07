@@ -24,13 +24,12 @@ func1 xs = call list ret
 
 
 cbn :: Env -> Expr -> Maybe Value
-cbn (Env xs) (Var name)   = lookup name xs
-cbn (Env xs) (FCall name) = lookup name xs
--- cbn (Env xs) (App (FCall name) e2) = case lookup name xs of
---   Just (Lam n1 e3) -> cbn (Env xs) (substExpr (n1, e2) e3)
---   _                -> Nothing
+cbn (Env xs) (Var name)   = case lookup name xs of
+  Just (VExpr e) -> cbn (Env xs) e
+  z              -> z
 cbn env (App e1 e2) = case cbn env e1 of
   Just (VClosure (Lam n1 e3) env2) -> cbn env2 (substExpr (n1, e2) e3)
+  Just (VExpr e)                   -> cbn env (App e e2)
   _                                -> Nothing
 cbn env lam@(Lam n1 e1) = Just $ VClosure lam env
 cbn env@(Env xs) (Let n1 e1 e2)  = cbn env (substExpr (n1, e1) e2)

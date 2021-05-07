@@ -22,6 +22,12 @@ fib:(int counter, int current, int previous){
 if (counter == 0) then current else ($fib (counter-1) (current+previous) current)
 }
 
+fibs:(int counter, int cp){
+if (counter == 0) then cp else (fibs (counter-1) ((fst cp + snd cp), fst cp))
+}
+
 main:(){
-return ($fib 5 1 1)
+!!return (5, |hello|)
+return (fib 25 1 1)
+!!return (fibs 12 (1,1))
 }

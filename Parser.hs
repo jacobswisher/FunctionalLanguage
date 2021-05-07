@@ -7,12 +7,23 @@ import Language
 
 main = do
     contents <- readFile "in.txt"
-    let newContents = parser $ token (addSpaces (removeComments$ lines contents))
+    let newContents = runIt $ parseIt contents
+
     -- let newContents = (addSpaces (removeComments$ lines contents))
     putStrLn $ show (newContents)
     -- when (length newContents > 0) $
     --     writeFile "out.sudo" newContents
 
+test = "\n\n!!func2:(int f, bool b){\n!!if b then f+2 else f\n!!}\n!!this is a comment\n!!car:(){\n!!|Ford_Mustang|\n!!}\n\n!!c:(){func a b}\n\n!!b:(){true}\n\na:(){5}\n\ng:(int f) {\nf * 6\n}\n\n!!fib:(int counter, int current, int previous){\n!!if (counter == 0) then current else ($fib (counter-1) (current+previous) current)\n!!}\n\nmain:(){\nreturn (g a)\n!!return ($fib 5 1 1)\n}\n"
+
+
+parseIt :: String -> [Decl]
+parseIt contents = parser $ token (addSpaces (removeComments$ lines contents))
+
+runIt :: [Decl] -> Maybe Value
+runIt ds = cbn (Env decs) e
+  where ((_, e):decls) = reverse ds
+        decs = map (\(x,y) -> (x, VExpr y)) decls
 
 data Token = VSym String | LSym Lit | TSym Type | OpSym Binop
           | LBrace | RBrace | LPar | RPar | Colon | Comma | Period
@@ -108,7 +119,7 @@ classify "if"                    = Keyword "if"
 classify "then"                  = Keyword "then"
 classify "else"                  = Keyword "else"
 classify "return"                = Keyword "return"
-classify ('$':xs)                = Funcall xs
+classify ('$':xs) | isVSym xs    = VSym xs
 classify s | isVSym s            = VSym s --Must be last
 classify s = error ("No such keyword or operator: " ++ s)
 

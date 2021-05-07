@@ -38,7 +38,8 @@ data Binop = Add | Sub | Mul | Eql
 
 
 
-data Value = VInt Integer | VBool Bool | VFloat Double | VString String | VClosure Expr Env | VPair Value Value deriving Show
+data Value = VInt Integer | VBool Bool | VFloat Double | VString String
+  | VClosure Expr Env | VPair Value Value | VExpr Expr deriving Show
 
 data Program = Program [Decl] Expr deriving Eq
 
