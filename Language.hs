@@ -6,99 +6,97 @@ import Data.Maybe
 import Fact
 
 
-removeReturn :: [Decl] -> [Decl]
-removeReturn [] = []
-removeReturn (("return", e):xs) = xs
-removeReturn (x:xs) = x:(removeReturn xs)
+-- removeReturn :: [Decl] -> [Decl]
+-- removeReturn [] = []
+-- removeReturn (("return", e):xs) = xs
+-- removeReturn (x:xs) = x:(removeReturn xs)
+--
+-- getReturn :: [Decl] -> Expr
+-- getReturn (("return", e):xs) = e
+-- getReturn (x:xs) = getReturn xs
+--
+-- func1 :: [Decl] -> Expr
+-- func1 xs = call list ret
+--   where list = (removeReturn xs)
+--         ret  = (getReturn xs)
+--         call [] e = e
+--         call (x:xs) e = call xs (substExpr x e)
 
-getReturn :: [Decl] -> Expr
-getReturn (("return", e):xs) = e
-getReturn (x:xs) = getReturn xs
 
-func1 :: [Decl] -> Expr
-func1 xs = call list ret
-  where list = (removeReturn xs)
-        ret  = (getReturn xs)
-        call [] e = e
-        call (x:xs) e = call xs (substExpr x e)
+cbn :: [Decl] -> Expr -> Expr
+cbn ds (Var name)          = case lookup name ds of
+  Just e           -> cbn ds e
+  _                -> Null
+cbn ds (App e1 e2)         = case cbn ds e1 of
+  Null        -> Null
+  (Lam n1 e3) -> cbn ds (substExpr (n1, e2) e3)
+  e           -> cbn ds (App e e2)
 
+cbn ds lam@(Lam n1 e1)     = lam
+cbn ds (Let n1 e1 e2)      = cbn ds (substExpr (n1, e1) e2)
+cbn ds lit@(Lit (LInt val))    = lit
+cbn ds lit@(Lit (LBool val))   = lit
+cbn ds lit@(Lit (LString val)) = lit
+cbn ds lit@(Lit (LFloat val))  = lit
+cbn ds (If e1 e2 e3)       = case cbn ds e1 of
+                                 Lit (LBool True)  -> cbn ds e2
+                                 Lit (LBool False) -> cbn ds e3
+                                 _                 -> Null
+cbn ds (Fix e1)          = cbn ds (App e1 $ Fix e1)
+cbn ds (Op b1 e1 e2)     = binop b1 (cbn ds e1) (cbn ds e2)
+cbn ds (Pair e1 e2) = Pair (cbn ds e1) (cbn ds e2)
+cbn ds (Fst e) = case cbn ds e of
+                    Pair e1 e2 -> cbn ds e1
+                    _          -> Null
+cbn ds (Snd e) = case cbn ds e of
+                    Pair e1 e2 -> cbn ds e2
+                    _          -> Null
 
-cbn :: Env -> Expr -> Maybe Value
-cbn (Env xs) (Var name)   = case lookup name xs of
-  Just (VExpr e) -> cbn (Env xs) e
-  z              -> z
-cbn env (App e1 e2) = case cbn env e1 of
-  Just (VClosure (Lam n1 e3) env2) -> cbn env2 (substExpr (n1, e2) e3)
-  Just (VExpr e)                   -> cbn env (App e e2)
-  _                                -> Nothing
-cbn env lam@(Lam n1 e1) = Just $ VClosure lam env
-cbn env@(Env xs) (Let n1 e1 e2)  = cbn env (substExpr (n1, e1) e2)
-cbn env (Lit (LInt val))    = Just $ VInt    val
-cbn env (Lit (LBool val))   = Just $ VBool   val
-cbn env (Lit (LString val)) = Just $ VString val
-cbn env (Lit (LFloat val))  = Just $ VFloat  val
-cbn env (If e1 e2 e3)       = case cbn env e1 of
-                                 Just (VBool True)  -> cbn env e2
-                                 Just (VBool False) -> cbn env e3
-                                 _                  -> Nothing
-cbn env (Fix e1)          = cbn env (App e1 (Fix e1))
-cbn env (Op b1 e1 e2)     = do v1 <- cbn env e1
-                               v2 <- cbn env e2
-                               binop b1 v1 v2
-cbn env (Pair e1 e2) = do v1 <- cbn env e1
-                          v2 <- cbn env e2
-                          Just $ VPair v1 v2
-cbn env (Fst e) = case cbn env e of
-                    Just (VPair e1 e2) -> Just e1
-                    _                  -> Nothing
-cbn env (Snd e) = case cbn env e of
-                    Just (VPair e1 e2) -> Just e2
-                    _                  -> Nothing
-
+binop :: Binop -> Expr -> Expr -> Expr
+binop Add (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LInt    $ val1 + val2
+binop Sub (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LInt    $ val1 - val2
+binop Mul (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LInt    $ val1 * val2
+binop Eql (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LBool   $ val1 == val2
+binop Add (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LFloat  $ val1 + val2
+binop Sub (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LFloat  $ val1 - val2
+binop Mul (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LFloat  $ val1 * val2
+binop Eql (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LBool   $ val1 == val2
+binop Eql (Lit (LBool val1))  (Lit (LBool val2))  = Lit . LBool   $ val1 == val2
+binop _ _ _                                 = Null
 
 --unsafe must check for nothing first
-unMaybe :: Maybe a -> a
-unMaybe (Just x) = x
+-- unMaybe :: Maybe a -> a
+-- unMaybe (Just x) = x
 
 
-declToEnv xs = Env $ declToEnv' xs
-
-declToEnv' :: [Decl] -> [(Name, Value)]
-declToEnv' [] = []
-declToEnv' ((name, Lit (LInt i)):xs) = ((name, VInt i):(declToEnv' xs))
-declToEnv' ((name, Lit (LBool i)):xs) = ((name, VBool i):(declToEnv' xs))
-declToEnv' ((name, Lit (LString i)):xs) = ((name, VString i):(declToEnv' xs))
-declToEnv' ((name, Lit (LFloat i)):xs) = ((name, VFloat i):(declToEnv' xs))
-declToEnv' ((name, Lam n e):xs) = ((name, VClosure e (Env [])):(declToEnv' xs))
-declToEnv' ((name, Pair i1 i2):xs) = ((name, VPair (exprToValue i1) (exprToValue i2)):(declToEnv' xs))
-
-exprToValue :: Expr -> Value
-exprToValue (Lit (LInt i)) = VInt i
-exprToValue (Lit (LBool i)) = VBool i
-exprToValue (Lit (LString i)) = VString i
-exprToValue (Lit (LFloat i)) = VFloat i
-exprToValue (Pair e1 e2)  = VPair (exprToValue e1) (exprToValue e2)
-
-
-
+-- declToEnv xs = Env $ declToEnv' xs
+--
+-- declToEnv' :: [Decl] -> [(Name, Value)]
+-- declToEnv' [] = []
+-- declToEnv' ((name, Lit (LInt i)):xs) = ((name, VInt i):(declToEnv' xs))
+-- declToEnv' ((name, Lit (LBool i)):xs) = ((name, VBool i):(declToEnv' xs))
+-- declToEnv' ((name, Lit (LString i)):xs) = ((name, VString i):(declToEnv' xs))
+-- declToEnv' ((name, Lit (LFloat i)):xs) = ((name, VFloat i):(declToEnv' xs))
+-- declToEnv' ((name, Lam n e):xs) = ((name, VClosure e (Env [])):(declToEnv' xs))
+-- declToEnv' ((name, Pair i1 i2):xs) = ((name, VPair (exprToValue i1) (exprToValue i2)):(declToEnv' xs))
+--
+-- exprToValue :: Expr -> Value
+-- exprToValue (Lit (LInt i)) = VInt i
+-- exprToValue (Lit (LBool i)) = VBool i
+-- exprToValue (Lit (LString i)) = VString i
+-- exprToValue (Lit (LFloat i)) = VFloat i
+-- exprToValue (Pair e1 e2)  = VPair (exprToValue e1) (exprToValue e2)
 
 
 
 
-binop :: Binop -> Value -> Value -> Maybe Value
-binop Add (VInt val1) (VInt val2) = Just . VInt  $ val1 + val2
-binop Sub (VInt val1) (VInt val2) = Just . VInt  $ val1 - val2
-binop Mul (VInt val1) (VInt val2) = Just . VInt  $ val1 * val2
-binop Eql (VInt val1) (VInt val2) = Just . VBool $ val1 == val2
-binop Add (VFloat val1) (VFloat val2) = Just . VFloat  $ val1 + val2
-binop Sub (VFloat val1) (VFloat val2) = Just . VFloat  $ val1 - val2
-binop Mul (VFloat val1) (VFloat val2) = Just . VFloat  $ val1 * val2
-binop Eql (VFloat val1) (VFloat val2) = Just . VBool $ val1 == val2
-binop Eql (VBool val1) (VBool val2) = Just . VBool $ val1 == val2
-binop _ _ _                         = Nothing
 
-extend :: TypeEnv -> (Name, Scheme) -> TypeEnv
-extend (TypeEnv cxt) decl = TypeEnv (decl:cxt)
+
+
+
+
+-- extend :: TypeEnv -> (Name, Scheme) -> TypeEnv
+-- extend (TypeEnv cxt) decl = TypeEnv (decl:cxt)
 
 fv :: Expr -> [TVar]
 fv (Var name)        = [(TV name)]
@@ -179,9 +177,9 @@ substTypeList :: (TVar, Type) -> [Type] -> [Type]
 substTypeList = fmap . substType
 
 
-substTypeEnv :: (TVar, Type) -> TypeEnv -> TypeEnv
-substTypeEnv s (TypeEnv env) = TypeEnv $ map f env
-                            where f (x,t) = (x, substScheme s t)
+-- substTypeEnv :: (TVar, Type) -> TypeEnv -> TypeEnv
+-- substTypeEnv s (TypeEnv env) = TypeEnv $ map f env
+--                             where f (x,t) = (x, substScheme s t)
 
 
 

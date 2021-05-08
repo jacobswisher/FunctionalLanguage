@@ -1,1 +1,1 @@
-hello
+[("fact",Lam "cur" (If (Op Eql (Var "cur") (Lit (LInt 0))) (Lit (LInt 1)) (Op Mul (Var "cur") (App (Var "fact") (Op Sub (Var "cur") (Lit (LInt 1))))))),("return",App (Var "fact") (Lit (LInt 10)))]

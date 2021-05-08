@@ -12,34 +12,43 @@ data Expr
   | Pair Expr Expr
   | Fst Expr
   | Snd Expr
-  -- | Return Expr
+  | Null
   | FCall Name
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord, Read, Show)
+
+-- instance Show Expr where
+--   show Null = "Null"
+--   show (Lit x) = show x
+--   show x =
 
 newtype TVar = TV String
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Read)
 
 data Type
   = TVar  TVar
   | TCon  String
   | TArr  Type Type
   | TProd Type Type
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Read)
 
 data Lit
   = LInt    Integer
   | LBool   Bool
   | LString String
   | LFloat  Double
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Read)
 
 data Binop = Add | Sub | Mul | Eql
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Read)
 
+-- instance Show Lit where
+--   show (LInt i)    = show i
+--   show (LBool i)   = show i
+--   show (LString i) = show i
+--   show (LFloat i)  = show i
 
-
-data Value = VInt Integer | VBool Bool | VFloat Double | VString String
-  | VClosure Expr Env | VPair Value Value | VExpr Expr deriving Show
+-- data Value = VInt Integer | VBool Bool | VFloat Double | VString String
+--   | VClosure Expr Env | VPair Value Value | VExpr Expr deriving Show
 
 data Program = Program [Decl] Expr deriving Eq
 
@@ -49,8 +58,8 @@ data Scheme = Base Type | Forall TVar Scheme
 
 type Name = String
 
-newtype TypeEnv = TypeEnv [(Name, Scheme)]
-newtype Env = Env [(Name, Value)] deriving Show
+-- newtype TypeEnv = TypeEnv [(Name, Scheme)]
+-- newtype Env = Env [(Name, Value)] deriving Show
 
 
 

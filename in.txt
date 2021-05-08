@@ -18,16 +18,19 @@
 !!f * 6
 !!}
 
-fib:(int counter, int current, int previous){
-if (counter == 0) then current else ($fib (counter-1) (current+previous) current)
-}
+!!fib:(int counter, int current, int previous){
+!!if (counter == 0) then current else ($fib (counter-1) (current+previous) current)
+!!}
 
-fibs:(int counter, int cp){
-if (counter == 0) then cp else (fibs (counter-1) ((fst cp + snd cp), fst cp))
+!!fibs:(int counter, int cp){
+!!if (counter == 0) then cp else (fibs (counter-1) ((fst cp + snd cp), fst cp))
+!!}
+
+fact:(int cur) {
+if (cur == 0) then 1 else (cur * (fact (cur-1)))
 }
 
 main:(){
-!!return (5, |hello|)
-return (fib 25 1 1)
-!!return (fibs 12 (1,1))
+
+return (fact 10)
 }
