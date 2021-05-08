@@ -1,0 +1,17 @@
+
+
+
+
+c : 1
+
+
+
+main:
+return c+1
+
+
+
+
+
+
+# comment

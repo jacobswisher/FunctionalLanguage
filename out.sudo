@@ -1,1 +1,1 @@
-[("fact",Lam "cur" (If (Op Eql (Var "cur") (Lit (LInt 0))) (Lit (LInt 1)) (Op Mul (Var "cur") (App (Var "fact") (Op Sub (Var "cur") (Lit (LInt 1))))))),("return",App (Var "fact") (Lit (LInt 10)))]
+[("tur",Lit (LBool True)),("pur",Lit (LInt 5)),("fact",Lam "cur" (Lam "mur" (If (Var "tur") (Op Add (Var "cur") (Var "pur")) (Op Sub (Var "pur") (Var "cur"))))),("return",App (App (Var "fact") (Lit (LInt 10))) (Lit (LString "Hello")))]

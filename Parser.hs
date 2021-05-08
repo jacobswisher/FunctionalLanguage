@@ -8,7 +8,7 @@ import Language
 compile :: String -> String -> IO()
 compile infile outfile = do
     contents <- readFile infile
-    let newContents = parseIt contents
+    let newContents = parseIt $ setUpFile $ contents
     when (length newContents > 0) $
       writeFile outfile (show newContents)
 
@@ -17,16 +17,19 @@ run infile = do
     contents <- readFile infile
     putStrLn $ show $ runIt (read contents)
 
+setUpFile :: String -> String
+setUpFile contents = unlines $ addBrackets $ combineLines $ removeComments $ lines contents
+
 
 parseIt :: String -> [Decl]
-parseIt contents = parser $ token $ addSpaces $ removeComments $ lines contents
+parseIt contents = parser $ token $ addSpaces contents
 
 runIt :: [Decl] -> Expr
 runIt ds = cbn decls e
   where ((_, e):decls) = reverse ds
         -- decs = map (\(x,y) -> (x, VExpr y)) decls
 
-data Token = VSym String | LSym Lit | TSym Type | OpSym Binop
+data Token = VSym String | LSym Lit | OpSym Binop
           | LBrace | RBrace | LPar | RPar | Colon | Comma | Period
           | Keyword String | ParsedExpr Expr | Decl Name Type | Error
           | Func Expr | Defn Name Expr | Funcall Name deriving Show
@@ -41,25 +44,25 @@ parser s  = sr [] s
 
 sr :: [Token] -> [Token] -> [Decl]
 sr ((LSym lit):xs) i                                      = sr ((ParsedExpr (Lit lit)):xs) i
-sr (RPar:ParsedExpr e:LPar:xs) i                          = sr (ParsedExpr e:xs) i
 sr ((ParsedExpr e1):(OpSym binop):(ParsedExpr e2):xs) i   = sr (ParsedExpr (Op binop e2 e1):xs) i
 sr (RPar:(ParsedExpr e1):Comma:(ParsedExpr e2):LPar:xs) i = sr (ParsedExpr (Pair e2 e1):xs) i
 sr ((ParsedExpr e1):(Keyword "fst"):xs) i                 = sr (ParsedExpr (Fst e1):xs) i
 sr ((ParsedExpr e1):(Keyword "snd"):xs) i                 = sr (ParsedExpr (Snd e1):xs) i
 sr ((ParsedExpr e1):(Keyword "else"):(ParsedExpr e2):(Keyword "then"):(ParsedExpr e3):(Keyword "if"):xs) i = sr (ParsedExpr (If e3 e2 e1):xs) i
 sr (RBrace:(ParsedExpr e):LBrace:xs) i                    = sr (Func e:xs) i
-sr ((Func func):RPar:(ParsedExpr (Var var)):(TSym _):Comma:xs) i = sr (Func (Lam var func):RPar:xs) i
-sr ((Func func):RPar:(ParsedExpr (Var var)):(TSym _):LPar: xs) i = sr (Func (Lam var func):RPar:xs) i
-sr ((Func func):RPar:LPar:Colon:(VSym fname):xs) i        = sr (Defn fname func:xs) i
-sr ((Func func):RPar:Colon:(VSym fname):xs) i             = sr (Defn fname func:xs) i
+sr ((Func func):(ParsedExpr (Var var)):Comma:xs) i        = sr (Func (Lam var func):xs) i
+sr ((Func func):(ParsedExpr (Var var)): xs) i             = sr (Func (Lam var func):xs) i
+sr ((Func func):Colon:(VSym fname):xs) i                  = sr (Defn fname func:xs) i
 sr ((ParsedExpr func):(Keyword "return"):xs) i            = ("return", func):(sr xs i)
 sr ((Defn fname func):xs) i                               = (fname, func):(sr xs i)
 sr ((VSym name):xs) (Colon:is)                            = sr (Colon:VSym name:xs) is
 sr ((VSym name):xs) i                                     = sr (ParsedExpr (Var name):xs) i
-sr (RBrace:LBrace:RPar:LPar:Colon:VSym "main":xs) i       = sr xs i
+sr (RBrace:LBrace:Colon:VSym "main":xs) i                 = sr xs i
 sr ((ParsedExpr arg):(Funcall fun):xs) i                  = sr (ParsedExpr (App (FCall fun) arg):xs) i
 sr (ParsedExpr a1:ParsedExpr a2:xs) i                     = sr (ParsedExpr (App a2 a1):xs) i
+sr (RPar:ParsedExpr e:LPar:xs) i                          = sr (ParsedExpr e:xs) i
 sr s (i:is)                                               = sr (i:s) is
+sr (RBrace:[]) []                                            = []
 sr [] i                                                   = []
 sr s []                                                   = error("parse stopped at " ++ show s)
 
@@ -71,12 +74,27 @@ addUnder (('|':xs):ys) | tail xs == "|" = (('|':(add_ xs) ++ "|") ++ (addUnder y
         add_ (x:xs) = (x:add_ xs)
 addUnder (x:xs) = x ++ (addUnder xs)
 
+test ="fact: cur\nif tur\nthen cur*pur\nelse pur-cur\n\nmain:\nreturn (fact 10)\n"
 
 
-removeComments :: [String] -> String
-removeComments [] = ""
-removeComments (('!':'!':_):xs) = removeComments xs
-removeComments (x:xs) = x ++ removeComments xs
+combineLines :: [String] -> [String]
+combineLines [] = []
+combineLines (x:[]) = [x]
+combineLines (x1:x2:xs) | (':' `elem` x2 || ':' `elem` x1) == False = combineLines $ (x1 ++ " " ++ x2):xs
+combineLines (x:xs) = x:combineLines xs
+
+
+addBrackets :: [String] -> [String]
+addBrackets []                         = []
+addBrackets (x:xs)     | ':' `elem` x  = (x  ++ "{") : addBrackets xs
+addBrackets (x1:x2:xs) | ':' `elem` x2 = (x1 ++ "}") : addBrackets (x2:xs)
+addBrackets (x1:[])                    = [x1 ++ "}"]
+addBrackets (x:xs)                     = x : addBrackets xs
+
+removeComments :: [String] -> [String]
+removeComments [] = []
+removeComments (('#':_):xs) = removeComments xs
+removeComments (x:xs) = x : removeComments xs
 
 addSpaces :: String -> String
 addSpaces "" = ""
@@ -88,6 +106,7 @@ addSpaces ('(':xs) = " ( " ++ addSpaces xs
 addSpaces ('}':xs) = " } " ++ addSpaces xs
 addSpaces ('{':xs) = " { " ++ addSpaces xs
 addSpaces ('+':xs) = " + " ++ addSpaces xs
+addSpaces ('*':xs) = " * " ++ addSpaces xs
 addSpaces ('-':xs) = " - " ++ addSpaces xs
 addSpaces ('=':'=':xs) = " == " ++ addSpaces xs
 addSpaces (x:xs) = (x:addSpaces xs)
@@ -95,10 +114,6 @@ addSpaces (x:xs) = (x:addSpaces xs)
 classify :: String -> Token
 classify "{"                     = LBrace
 classify "}"                     = RBrace
-classify "int"                   = TSym typeInt
-classify "bool"                  = TSym typeBool
-classify "float"                 = TSym typeFloat
-classify "string"                = TSym typeString
 classify "+"                     = OpSym Add
 classify "-"                     = OpSym Sub
 classify "*"                     = OpSym Mul

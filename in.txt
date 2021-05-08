@@ -1,36 +1,22 @@
 
 
-!!func2:(int f, bool b){
-!!if b then f+2 else f
-!!}
-!!this is a comment
-!!car:(){
-!!|Ford_Mustang|
-!!}
+#comment
 
-!!c:(){func a b}
+tur:
+true
 
-!!b:(){true}
+pur:
+5
 
-!!a:(){5}
+fact: cur, mur
+if tur
+then (cur+pur)
+else (pur-cur)
 
-!!g:(int f) {
-!!f * 6
-!!}
+main:
+return (fact 10 |Hello|)
 
-!!fib:(int counter, int current, int previous){
-!!if (counter == 0) then current else ($fib (counter-1) (current+previous) current)
-!!}
 
-!!fibs:(int counter, int cp){
-!!if (counter == 0) then cp else (fibs (counter-1) ((fst cp + snd cp), fst cp))
-!!}
 
-fact:(int cur) {
-if (cur == 0) then 1 else (cur * (fact (cur-1)))
-}
 
-main:(){
-
-return (fact 10)
-}
+#comment
