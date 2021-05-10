@@ -14,6 +14,7 @@ cbn ds (Var name)          = case lookup name ds of
 cbn ds (App e1 e2)         = case cbn ds e1 of
   Null        -> Null
   (Lit _)     -> Null
+  (Pair _ _)  -> Null
   (Lam n1 e3) -> cbn ds (substExpr (n1, e2) e3)
   e           -> cbn ds (App e e2)
 
@@ -40,21 +41,30 @@ cbn ds (Snd e) = case cbn ds e of
 binop :: Binop -> Expr -> Expr -> Expr
 binop Add (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 + val2
 binop Add (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 + val2
+binop Add (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteger val1) + val2
+binop Add (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 + (fromInteger val2)
 binop Add (Lit (LString val1)) (Lit (LString val2)) = Lit . LString $ val1 ++ val2
 binop Sub (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 - val2
 binop Sub (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 - val2
+binop Sub (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteger val1) - val2
+binop Sub (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 - (fromInteger val2)
 binop Mul (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 * val2
 binop Mul (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 * val2
+binop Mul (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteger val1) * val2
+binop Mul (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 * (fromInteger val2)
 binop Mul (Lit (LString val1)) (Lit (LInt val2))    = Lit . LString $ concat $ replicate (fromIntegral val2) val1
 binop Div (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 / val2
+binop Div (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteger val1) / val2
+binop Div (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 / (fromInteger val2)
 binop Div (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 `div` val2
 binop Mod (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 `mod` val2
 binop Eql (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LBool $ val1 == val2
 binop Eql (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LBool $ val1 == val2
-binop Eql (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool $ val1 == (round val2)
-binop Eql (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool $ (round val1) == val2
+binop Eql (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool $ (fromInteger val1) == val2
+binop Eql (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool $ val1 == (fromInteger val2)
 binop Eql (Lit (LBool val1))   (Lit (LBool val2))   = Lit . LBool $ val1 == val2
 binop Eql (Lit (LString val1)) (Lit (LString val2)) = Lit . LBool $ val1 == val2
+binop Eql e1 e2                                     = Lit . LBool $ e1 == e2
 binop _ _ _                                         = Null
 
 fv :: Expr -> [TVar]
