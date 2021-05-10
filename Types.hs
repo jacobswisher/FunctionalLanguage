@@ -13,13 +13,8 @@ data Expr
   | Fst Expr
   | Snd Expr
   | Null
-  | FCall Name
   deriving (Eq, Ord, Read, Show)
 
--- instance Show Expr where
---   show Null = "Null"
---   show (Lit x) = show x
---   show x =
 
 newtype TVar = TV String
   deriving (Show, Eq, Ord, Read)
@@ -38,19 +33,11 @@ data Lit
   | LFloat  Double
   deriving (Show, Eq, Ord, Read)
 
-data Binop = Add | Sub | Mul | Eql
+data Binop = Add | Sub | Mul | Div | Mod | Eql
   deriving (Eq, Ord, Show, Read)
 
--- instance Show Lit where
---   show (LInt i)    = show i
---   show (LBool i)   = show i
---   show (LString i) = show i
---   show (LFloat i)  = show i
 
--- data Value = VInt Integer | VBool Bool | VFloat Double | VString String
---   | VClosure Expr Env | VPair Value Value | VExpr Expr deriving Show
-
-data Program = Program [Decl] Expr deriving Eq
+data Program = Program [Decl] Expr deriving (Eq, Show, Read)
 
 type Decl = (Name, Expr)
 
@@ -58,8 +45,6 @@ data Scheme = Base Type | Forall TVar Scheme
 
 type Name = String
 
--- newtype TypeEnv = TypeEnv [(Name, Scheme)]
--- newtype Env = Env [(Name, Value)] deriving Show
 
 
 

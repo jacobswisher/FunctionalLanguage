@@ -1,0 +1,15 @@
+
+
+#comment
+
+factorial: arg
+if (arg eql 0) then 1 else (arg mul (factorial (arg sub 1)))
+
+
+main:
+return (factorial 20)
+
+
+
+
+#comment

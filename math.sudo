@@ -1,0 +1,17 @@
+
+#This is ugly code
+toFloat: int, counter
+if (int eql counter)
+then counter
+else (toFloat int (counter add 1.0))
+
+isEven: number
+(number mod 2) eql 0
+
+makeNotEven: number
+if (isEven number)
+then (1 add (number mul 3))
+else number
+
+main:
+return (toFloat (makeNotEven 200) 0.0)

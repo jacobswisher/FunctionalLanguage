@@ -1,26 +1,10 @@
-module Language where
+module Language (cbn) where
 
 import Types
 import Data.List
 import Data.Maybe
-import Fact
 
 
--- removeReturn :: [Decl] -> [Decl]
--- removeReturn [] = []
--- removeReturn (("return", e):xs) = xs
--- removeReturn (x:xs) = x:(removeReturn xs)
---
--- getReturn :: [Decl] -> Expr
--- getReturn (("return", e):xs) = e
--- getReturn (x:xs) = getReturn xs
---
--- func1 :: [Decl] -> Expr
--- func1 xs = call list ret
---   where list = (removeReturn xs)
---         ret  = (getReturn xs)
---         call [] e = e
---         call (x:xs) e = call xs (substExpr x e)
 
 
 cbn :: [Decl] -> Expr -> Expr
@@ -29,6 +13,7 @@ cbn ds (Var name)          = case lookup name ds of
   _                -> Null
 cbn ds (App e1 e2)         = case cbn ds e1 of
   Null        -> Null
+  (Lit _)     -> Null
   (Lam n1 e3) -> cbn ds (substExpr (n1, e2) e3)
   e           -> cbn ds (App e e2)
 
@@ -53,50 +38,24 @@ cbn ds (Snd e) = case cbn ds e of
                     _          -> Null
 
 binop :: Binop -> Expr -> Expr -> Expr
-binop Add (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LInt    $ val1 + val2
-binop Sub (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LInt    $ val1 - val2
-binop Mul (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LInt    $ val1 * val2
-binop Eql (Lit (LInt val1))   (Lit (LInt val2))   = Lit . LBool   $ val1 == val2
-binop Add (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LFloat  $ val1 + val2
-binop Sub (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LFloat  $ val1 - val2
-binop Mul (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LFloat  $ val1 * val2
-binop Eql (Lit (LFloat val1)) (Lit (LFloat val2)) = Lit . LBool   $ val1 == val2
-binop Eql (Lit (LBool val1))  (Lit (LBool val2))  = Lit . LBool   $ val1 == val2
-binop _ _ _                                 = Null
-
---unsafe must check for nothing first
--- unMaybe :: Maybe a -> a
--- unMaybe (Just x) = x
-
-
--- declToEnv xs = Env $ declToEnv' xs
---
--- declToEnv' :: [Decl] -> [(Name, Value)]
--- declToEnv' [] = []
--- declToEnv' ((name, Lit (LInt i)):xs) = ((name, VInt i):(declToEnv' xs))
--- declToEnv' ((name, Lit (LBool i)):xs) = ((name, VBool i):(declToEnv' xs))
--- declToEnv' ((name, Lit (LString i)):xs) = ((name, VString i):(declToEnv' xs))
--- declToEnv' ((name, Lit (LFloat i)):xs) = ((name, VFloat i):(declToEnv' xs))
--- declToEnv' ((name, Lam n e):xs) = ((name, VClosure e (Env [])):(declToEnv' xs))
--- declToEnv' ((name, Pair i1 i2):xs) = ((name, VPair (exprToValue i1) (exprToValue i2)):(declToEnv' xs))
---
--- exprToValue :: Expr -> Value
--- exprToValue (Lit (LInt i)) = VInt i
--- exprToValue (Lit (LBool i)) = VBool i
--- exprToValue (Lit (LString i)) = VString i
--- exprToValue (Lit (LFloat i)) = VFloat i
--- exprToValue (Pair e1 e2)  = VPair (exprToValue e1) (exprToValue e2)
-
-
-
-
-
-
-
-
-
--- extend :: TypeEnv -> (Name, Scheme) -> TypeEnv
--- extend (TypeEnv cxt) decl = TypeEnv (decl:cxt)
+binop Add (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 + val2
+binop Add (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 + val2
+binop Add (Lit (LString val1)) (Lit (LString val2)) = Lit . LString $ val1 ++ val2
+binop Sub (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 - val2
+binop Sub (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 - val2
+binop Mul (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 * val2
+binop Mul (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 * val2
+binop Mul (Lit (LString val1)) (Lit (LInt val2))    = Lit . LString $ concat $ replicate (fromIntegral val2) val1
+binop Div (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 / val2
+binop Div (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 `div` val2
+binop Mod (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 `mod` val2
+binop Eql (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LBool $ val1 == val2
+binop Eql (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LBool $ val1 == val2
+binop Eql (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool $ val1 == (round val2)
+binop Eql (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool $ (round val1) == val2
+binop Eql (Lit (LBool val1))   (Lit (LBool val2))   = Lit . LBool $ val1 == val2
+binop Eql (Lit (LString val1)) (Lit (LString val2)) = Lit . LBool $ val1 == val2
+binop _ _ _                                         = Null
 
 fv :: Expr -> [TVar]
 fv (Var name)        = [(TV name)]
@@ -138,8 +97,6 @@ unTV (TV name) = name
 substExpr :: (Name, Expr) -> Expr -> Expr
 substExpr (name, e1) (Var name') | name == name' = e1
                                  | otherwise     = Var name'
-substExpr (name, e1) (FCall name') | name == name' = e1
-                                   | otherwise     = FCall name'
 substExpr p (App e1 e2) = App (substExpr p e1) (substExpr p e2)
 substExpr p@(n1, e1) (Lam n2 e2) | n2 /= n1 && (not $ (TV n2) `elem` (fv e1)) = Lam n2 (substExpr p e2)
                                  | n2 == n1  = Lam n2 e2
@@ -175,12 +132,6 @@ substScheme p1@(name, t1) p2@(Forall var scheme) | name /= var && (not $ var `el
 
 substTypeList :: (TVar, Type) -> [Type] -> [Type]
 substTypeList = fmap . substType
-
-
--- substTypeEnv :: (TVar, Type) -> TypeEnv -> TypeEnv
--- substTypeEnv s (TypeEnv env) = TypeEnv $ map f env
---                             where f (x,t) = (x, substScheme s t)
-
 
 
 --comment

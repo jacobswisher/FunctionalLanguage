@@ -5,47 +5,68 @@ import Control.Monad (when)
 import Data.Char
 import Language
 
+main :: IO()
+main = do compile "in.sudo" "out.o"
+          run "out.o"
+
 compile :: String -> String -> IO()
 compile infile outfile = do
     contents <- readFile infile
-    let newContents = parseIt $ setUpFile $ contents
+    let newContents = show $ parseIt $ setUpFile $ contents
     when (length newContents > 0) $
-      writeFile outfile (show newContents)
+      writeFile outfile newContents
 
 run :: String -> IO()
 run infile = do
     contents <- readFile infile
-    putStrLn $ show $ runIt (read contents)
+    putStrLn $ show $ toReturn $ runIt (read contents)
 
 setUpFile :: String -> String
 setUpFile contents = unlines $ addBrackets $ combineLines $ removeComments $ lines contents
 
 
-parseIt :: String -> [Decl]
-parseIt contents = parser $ token $ addSpaces contents
+parseIt :: String -> Program
+parseIt contents = toProgram decls []
+  where decls = parser $ token $ addSpaces contents
 
-runIt :: [Decl] -> Expr
-runIt ds = cbn decls e
-  where ((_, e):decls) = reverse ds
-        -- decs = map (\(x,y) -> (x, VExpr y)) decls
+runIt :: Program -> Expr
+runIt (Program ds e) = cbn ds e
+
+toReturn :: Expr -> Return
+toReturn (Lit lit) = case lit of
+                        (LInt i)    -> Integer i
+                        (LBool i)   -> Boolean i
+                        (LFloat i)  -> Float i
+                        (LString i) -> String i
+toReturn (Types.Pair e1 e2) = Parser.Pair (toReturn e1) (toReturn e2)
+toReturn e = Expression e
+
+data Return = Integer Integer | String String | Float Double | Boolean Bool
+          | Pair Return Return | Expression Expr deriving Show
 
 data Token = VSym String | LSym Lit | OpSym Binop
-          | LBrace | RBrace | LPar | RPar | Colon | Comma | Period
-          | Keyword String | ParsedExpr Expr | Decl Name Type | Error
+          | LBrace | RBrace | LPar | RPar | Colon | Comma
+          | Keyword String | ParsedExpr Expr | Decl Name Type
           | Func Expr | Defn Name Expr | Funcall Name deriving Show
 
 
 
 token :: String -> [Token]
-token s = map classify (words s)
+token s = map classify (words s)-- decs = map (\(x,y) -> (x, VExpr y)) decls
 
 parser :: [Token] -> [Decl]
 parser s  = sr [] s
 
+toProgram :: [Decl] -> [Decl] -> Program
+toProgram [] ds                 = Program ds Null
+toProgram (("return", e):xs) ds = Program (ds ++ xs) e
+toProgram (x:xs) ds             = toProgram xs (x:ds)
+
+
 sr :: [Token] -> [Token] -> [Decl]
 sr ((LSym lit):xs) i                                      = sr ((ParsedExpr (Lit lit)):xs) i
 sr ((ParsedExpr e1):(OpSym binop):(ParsedExpr e2):xs) i   = sr (ParsedExpr (Op binop e2 e1):xs) i
-sr (RPar:(ParsedExpr e1):Comma:(ParsedExpr e2):LPar:xs) i = sr (ParsedExpr (Pair e2 e1):xs) i
+sr (RPar:(ParsedExpr e1):Comma:(ParsedExpr e2):LPar:xs) i = sr (ParsedExpr (Types.Pair e2 e1):xs) i
 sr ((ParsedExpr e1):(Keyword "fst"):xs) i                 = sr (ParsedExpr (Fst e1):xs) i
 sr ((ParsedExpr e1):(Keyword "snd"):xs) i                 = sr (ParsedExpr (Snd e1):xs) i
 sr ((ParsedExpr e1):(Keyword "else"):(ParsedExpr e2):(Keyword "then"):(ParsedExpr e3):(Keyword "if"):xs) i = sr (ParsedExpr (If e3 e2 e1):xs) i
@@ -58,23 +79,18 @@ sr ((Defn fname func):xs) i                               = (fname, func):(sr xs
 sr ((VSym name):xs) (Colon:is)                            = sr (Colon:VSym name:xs) is
 sr ((VSym name):xs) i                                     = sr (ParsedExpr (Var name):xs) i
 sr (RBrace:LBrace:Colon:VSym "main":xs) i                 = sr xs i
-sr ((ParsedExpr arg):(Funcall fun):xs) i                  = sr (ParsedExpr (App (FCall fun) arg):xs) i
 sr (ParsedExpr a1:ParsedExpr a2:xs) i                     = sr (ParsedExpr (App a2 a1):xs) i
 sr (RPar:ParsedExpr e:LPar:xs) i                          = sr (ParsedExpr e:xs) i
 sr s (i:is)                                               = sr (i:s) is
-sr (RBrace:[]) []                                            = []
+sr (RBrace:[]) []                                         = []
 sr [] i                                                   = []
 sr s []                                                   = error("parse stopped at " ++ show s)
 
-addUnder :: [String] -> String
-addUnder [] = ""
-addUnder (('|':xs):ys) | tail xs == "|" = (('|':(add_ xs) ++ "|") ++ (addUnder ys))
-  where add_ [] = []
-        add_ (' ':xs) =  ('_':add_ xs)
-        add_ (x:xs) = (x:add_ xs)
-addUnder (x:xs) = x ++ (addUnder xs)
+addUnder :: String -> String
+addUnder []       = ""
+addUnder ('_':xs) = ' ':(addUnder xs)
+addUnder (x:xs)   = x:(addUnder xs)
 
-test ="fact: cur\nif tur\nthen cur*pur\nelse pur-cur\n\nmain:\nreturn (fact 10)\n"
 
 
 combineLines :: [String] -> [String]
@@ -99,43 +115,37 @@ removeComments (x:xs) = x : removeComments xs
 addSpaces :: String -> String
 addSpaces "" = ""
 addSpaces (':':xs) = " : " ++ addSpaces xs
-addSpaces ('.':xs) = " . " ++ addSpaces xs
 addSpaces (',':xs) = " , " ++ addSpaces xs
 addSpaces (')':xs) = " ) " ++ addSpaces xs
 addSpaces ('(':xs) = " ( " ++ addSpaces xs
 addSpaces ('}':xs) = " } " ++ addSpaces xs
 addSpaces ('{':xs) = " { " ++ addSpaces xs
-addSpaces ('+':xs) = " + " ++ addSpaces xs
-addSpaces ('*':xs) = " * " ++ addSpaces xs
-addSpaces ('-':xs) = " - " ++ addSpaces xs
-addSpaces ('=':'=':xs) = " == " ++ addSpaces xs
 addSpaces (x:xs) = (x:addSpaces xs)
 
 classify :: String -> Token
 classify "{"                     = LBrace
 classify "}"                     = RBrace
-classify "+"                     = OpSym Add
-classify "-"                     = OpSym Sub
-classify "*"                     = OpSym Mul
-classify "=="                    = OpSym Eql
+classify "add"                   = OpSym Add
+classify "sub"                   = OpSym Sub
+classify "mul"                   = OpSym Mul
+classify "div"                   = OpSym Div
+classify "mod"                   = OpSym Mod
+classify "eql"                   = OpSym Eql
 classify "("                     = LPar
 classify ")"                     = RPar
 classify ":"                     = Colon
-classify "."                     = Period
 classify ","                     = Comma
 classify "false"                 = LSym $ LBool False
 classify "true"                  = LSym $ LBool True
 classify s | isInt s             = LSym $ LInt (read s)
 classify s | isFloat s           = LSym $ LFloat (read s)
-classify ('|':[])                = Error
-classify ('|':s) | last s == '|' = LSym $ LString $ init s
+classify ('|':s) | last s == '|' = LSym $ LString $ addUnder $ init s
 classify "fst"                   = Keyword "fst"
 classify "snd"                   = Keyword "snd"
 classify "if"                    = Keyword "if"
 classify "then"                  = Keyword "then"
 classify "else"                  = Keyword "else"
 classify "return"                = Keyword "return"
-classify ('$':xs) | isVSym xs    = VSym xs
 classify s | isVSym s            = VSym s --Must be last
 classify s = error ("No such keyword or operator: " ++ s)
 

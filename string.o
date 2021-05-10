@@ -1,0 +1,1 @@
+Program [("address",Lit (LString "123 green street NY")),("name",Lit (LString "Jacob Swisher"))] (If (Op Eql (Var "name") (Var "address")) (Lit (LString "Bad Name Or Address")) (Lit (LString "Good Name And Address")))

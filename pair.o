@@ -1,0 +1,1 @@
+Program [("swap",Lam "pair" (Pair (Snd (Var "pair")) (Fst (Var "pair"))))] (App (Var "swap") (Pair (Lit (LString "Hello World!")) (Op Div (Lit (LFloat 10.0)) (Lit (LFloat 3.0)))))

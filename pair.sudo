@@ -1,0 +1,9 @@
+
+
+
+swap : pair
+(snd pair, fst pair)
+
+
+main:
+return (swap (|Hello_World!| , (10.0 div 3.0) ) )

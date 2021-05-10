@@ -1,0 +1,10 @@
+
+
+name:
+|Jacob_Swisher|
+
+address:
+|123_green_street_NY|
+
+main:
+return (if (name eql address) then |Bad_Name_Or_Address| else |Good_Name_And_Address|)

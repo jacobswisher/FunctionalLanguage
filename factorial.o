@@ -1,0 +1,1 @@
+Program [("factorial",Lam "arg" (If (Op Eql (Var "arg") (Lit (LInt 0))) (Lit (LInt 1)) (Op Mul (Var "arg") (App (Var "factorial") (Op Sub (Var "arg") (Lit (LInt 1)))))))] (App (Var "factorial") (Lit (LInt 20)))
