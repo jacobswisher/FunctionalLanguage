@@ -2,7 +2,7 @@
 
 
 swap : pair
-(snd pair, fst pair)
+(lst pair, fst pair)
 
 
 main:

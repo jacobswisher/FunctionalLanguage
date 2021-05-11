@@ -22,7 +22,7 @@ run infile = do
     putStrLn $ show $ toReturn $ runIt (read contents)
 
 setUpFile :: String -> String
-setUpFile contents = unlines $ addBrackets $ combineLines $ removeComments $ lines contents
+setUpFile contents = unlines $ addBraces $ combineLines $ removeComments $ lines contents
 
 
 parseIt :: String -> Program
@@ -38,18 +38,20 @@ toReturn (Lit lit) = case lit of
                         (LBool i)   -> Boolean i
                         (LFloat i)  -> Float i
                         (LString i) -> String i
-toReturn (Types.Pair e1 e2) = Parser.Pair (toReturn e1) (toReturn e2)
+toReturn (Pair e1 e2)        = Set (toReturn e1) (toReturn e2)
+toReturn (List (Data e l))   = Array $ [toReturn e] ++ (unRList $ toReturn (List l))
+toReturn (List (Last e))     = Array $ [toReturn e]
 toReturn e = Expression e
 
 data Return = Integer Integer | String String | Float Double | Boolean Bool
-          | Pair Return Return | Expression Expr deriving Show
+          | Set Return Return | Expression Expr | Array [Return] deriving Show
 
-data Token = VSym String | LSym Lit | OpSym Binop
+data Token = VSym String | LSym Lit | OpSym Binop | LBracket | RBracket
           | LBrace | RBrace | LPar | RPar | Colon | Comma
           | Keyword String | ParsedExpr Expr | Decl Name Type
           | Func Expr | Defn Name Expr | Funcall Name deriving Show
 
-
+unRList (Array l) = l
 
 token :: String -> [Token]
 token s = map classify (words s)-- decs = map (\(x,y) -> (x, VExpr y)) decls
@@ -64,20 +66,24 @@ toProgram (x:xs) ds             = toProgram xs (x:ds)
 
 
 sr :: [Token] -> [Token] -> [Decl]
-sr ((LSym lit):xs) i                                      = sr ((ParsedExpr (Lit lit)):xs) i
-sr ((ParsedExpr e1):(OpSym binop):(ParsedExpr e2):xs) i   = sr (ParsedExpr (Op binop e2 e1):xs) i
-sr (RPar:(ParsedExpr e1):Comma:(ParsedExpr e2):LPar:xs) i = sr (ParsedExpr (Types.Pair e2 e1):xs) i
-sr ((ParsedExpr e1):(Keyword "fst"):xs) i                 = sr (ParsedExpr (Fst e1):xs) i
-sr ((ParsedExpr e1):(Keyword "snd"):xs) i                 = sr (ParsedExpr (Snd e1):xs) i
-sr ((ParsedExpr e1):(Keyword "else"):(ParsedExpr e2):(Keyword "then"):(ParsedExpr e3):(Keyword "if"):xs) i = sr (ParsedExpr (If e3 e2 e1):xs) i
-sr (RBrace:(ParsedExpr e):LBrace:xs) i                    = sr (Func e:xs) i
-sr ((Func func):(ParsedExpr (Var var)):Comma:xs) i        = sr (Func (Lam var func):xs) i
-sr ((Func func):(ParsedExpr (Var var)): xs) i             = sr (Func (Lam var func):xs) i
-sr ((Func func):Colon:(VSym fname):xs) i                  = sr (Defn fname func:xs) i
-sr ((ParsedExpr func):(Keyword "return"):xs) i            = ("return", func):(sr xs i)
-sr ((Defn fname func):xs) i                               = (fname, func):(sr xs i)
-sr ((VSym name):xs) (Colon:is)                            = sr (Colon:VSym name:xs) is
-sr ((VSym name):xs) i                                     = sr (ParsedExpr (Var name):xs) i
+sr (LSym lit:xs) i                                        = sr (ParsedExpr (Lit lit):xs) i
+sr (ParsedExpr e1:OpSym binop:ParsedExpr e2:xs) i         = sr (ParsedExpr (Op binop e2 e1):xs) i
+sr (RPar:ParsedExpr e1:Comma:ParsedExpr e2:LPar:xs) i     = sr (ParsedExpr (Pair e2 e1):xs) i
+sr (RBracket:ParsedExpr (List l):LBracket:xs) i           = sr (ParsedExpr (List l):xs) i
+sr (RBracket:ParsedExpr e:LBracket:xs) i                  = sr (ParsedExpr (List (Last e)):xs) i
+sr (RBracket:ParsedExpr (List l):Comma:ParsedExpr e:xs) i = sr (RBracket:ParsedExpr (List (Data e l)):xs) i
+sr (RBracket:ParsedExpr e1:Comma:ParsedExpr e2:xs) i      = sr (RBracket:ParsedExpr (List (Data e2 (Last e1))):xs) i
+sr (ParsedExpr e1:Keyword "fst":xs) i                     = sr (ParsedExpr (Fst e1):xs) i
+sr (ParsedExpr e1:Keyword "lst":xs) i                     = sr (ParsedExpr (Lst e1):xs) i
+sr (ParsedExpr e1:Keyword "else":ParsedExpr e2:Keyword "then":ParsedExpr e3:Keyword "if":xs) i = sr (ParsedExpr (If e3 e2 e1):xs) i
+sr (RBrace:ParsedExpr e:LBrace:xs) i                      = sr (Func e:xs) i
+sr (Func func:ParsedExpr (Var var):Comma:xs) i            = sr (Func (Lam var func):xs) i
+sr (Func func:ParsedExpr (Var var):xs) i                  = sr (Func (Lam var func):xs) i
+sr (Func func:Colon:VSym fname:xs) i                      = sr (Defn fname func:xs) i
+sr (ParsedExpr func:Keyword "return":xs) i                = ("return", func):(sr xs i)
+sr (Defn fname func:xs) i                                 = (fname, func):(sr xs i)
+sr (VSym name:xs) (Colon:is)                              = sr (Colon:VSym name:xs) is
+sr (VSym name:xs) i                                       = sr (ParsedExpr (Var name):xs) i
 sr (RBrace:LBrace:Colon:VSym "main":xs) i                 = sr xs i
 sr (ParsedExpr a1:ParsedExpr a2:xs) i                     = sr (ParsedExpr (App a2 a1):xs) i
 sr (RPar:ParsedExpr e:LPar:xs) i                          = sr (ParsedExpr e:xs) i
@@ -100,12 +106,12 @@ combineLines (x1:x2:xs) | (':' `elem` x2 || ':' `elem` x1) == False = combineLin
 combineLines (x:xs) = x:combineLines xs
 
 
-addBrackets :: [String] -> [String]
-addBrackets []                         = []
-addBrackets (x:xs)     | ':' `elem` x  = (x  ++ "{") : addBrackets xs
-addBrackets (x1:x2:xs) | ':' `elem` x2 = (x1 ++ "}") : addBrackets (x2:xs)
-addBrackets (x1:[])                    = [x1 ++ "}"]
-addBrackets (x:xs)                     = x : addBrackets xs
+addBraces :: [String] -> [String]
+addBraces []                         = []
+addBraces (x:xs)     | ':' `elem` x  = (x  ++ "{") : addBraces xs
+addBraces (x1:x2:xs) | ':' `elem` x2 = (x1 ++ "}") : addBraces (x2:xs)
+addBraces (x1:[])                    = [x1 ++ "}"]
+addBraces (x:xs)                     = x : addBraces xs
 
 removeComments :: [String] -> [String]
 removeComments [] = []
@@ -120,9 +126,13 @@ addSpaces (')':xs) = " ) " ++ addSpaces xs
 addSpaces ('(':xs) = " ( " ++ addSpaces xs
 addSpaces ('}':xs) = " } " ++ addSpaces xs
 addSpaces ('{':xs) = " { " ++ addSpaces xs
+addSpaces (']':xs) = " ] " ++ addSpaces xs
+addSpaces ('[':xs) = " [ " ++ addSpaces xs
 addSpaces (x:xs) = (x:addSpaces xs)
 
 classify :: String -> Token
+classify "["                     = LBracket
+classify "]"                     = RBracket
 classify "{"                     = LBrace
 classify "}"                     = RBrace
 classify "add"                   = OpSym Add
@@ -141,7 +151,7 @@ classify s | isInt s             = LSym $ LInt (read s)
 classify s | isFloat s           = LSym $ LFloat (read s)
 classify ('|':s) | last s == '|' = LSym $ LString $ addUnder $ init s
 classify "fst"                   = Keyword "fst"
-classify "snd"                   = Keyword "snd"
+classify "lst"                   = Keyword "lst"
 classify "if"                    = Keyword "if"
 classify "then"                  = Keyword "then"
 classify "else"                  = Keyword "else"

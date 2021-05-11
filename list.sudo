@@ -1,0 +1,7 @@
+
+
+list:
+[5, 7,  6]
+
+main:
+return (fst list)

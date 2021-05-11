@@ -41,6 +41,7 @@ The remaining expression is converted into a return value and printed to the scr
 
 "()"  = Parthenthsis are used for order of operations and in creation of pairs
 "{}"  = Braces are used by the parser to group functions and variables, not to be used by the programmer
+"[]"  = Brackets denote a list
 ","   = Commas are special characters used in the creation of pairs, and to denote a list of arguments
 "."   = Periods are reserved for the creation of a floating point number
 "#"   = Pound symbol denotes a comment line
@@ -48,8 +49,8 @@ The remaining expression is converted into a return value and printed to the scr
 
 ## Reserved keywords
 
-"fst" = Returns the first value in a pair
-"snd" = Returns the second value in a pair
+"fst" = Returns the first value in a pair, or first value in a list
+"lst" = Returns the second value in a pair, or last value in a list
 "if","then","else" = tests a condition, if true returns the "then" value, if false returns the "else" value
 "let" = Declares an expression (Not yet implemented)
 "add" = Adds two Integers, Floats, or Strings

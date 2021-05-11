@@ -10,11 +10,14 @@ data Expr
   | Fix Expr
   | Op Binop Expr Expr
   | Pair Expr Expr
+  | List List
   | Fst Expr
-  | Snd Expr
+  | Lst Expr
   | Null
   deriving (Eq, Ord, Read, Show)
 
+data List = Last Expr | Data Expr List
+  deriving (Eq, Ord, Read, Show)
 
 newtype TVar = TV String
   deriving (Show, Eq, Ord, Read)
@@ -37,7 +40,8 @@ data Binop = Add | Sub | Mul | Div | Mod | Eql
   deriving (Eq, Ord, Show, Read)
 
 
-data Program = Program [Decl] Expr deriving (Eq, Show, Read)
+data Program = Program [Decl] Expr
+  deriving (Eq, Show, Read)
 
 type Decl = (Name, Expr)
 
