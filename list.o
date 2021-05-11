@@ -1,1 +1,1 @@
-Program [("list",List (Data (Lit (LInt 5)) (Data (Lit (LInt 7)) (Last (Lit (LInt 6))))))] (Fst (Var "list"))
+Program [("fun",Lam "var" (If (Op Eql (Var "var") (Lit (LInt 2))) (Lit (LString "It's a two!")) (Lit (LString "Not a two")))),("list",List (Data (Lit (LInt 1)) (Data (Lit (LInt 2)) (Data (Lit (LInt 3)) (Data (Lit (LInt 4)) (Last (Lit (LInt 5))))))))] (Map (Var "fun") (Var "list"))

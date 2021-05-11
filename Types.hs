@@ -13,6 +13,7 @@ data Expr
   | List List
   | Fst Expr
   | Lst Expr
+  | Map Expr Expr
   | Null
   deriving (Eq, Ord, Read, Show)
 
@@ -36,7 +37,7 @@ data Lit
   | LFloat  Double
   deriving (Show, Eq, Ord, Read)
 
-data Binop = Add | Sub | Mul | Div | Mod | Eql
+data Binop = Add | Sub | Mul | Div | Mod | Eql | Ind
   deriving (Eq, Ord, Show, Read)
 
 

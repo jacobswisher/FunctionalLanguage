@@ -1,7 +1,12 @@
 
 
 list:
-[5, 7,  6]
+[1, 2, 3, 4, 5]
+
+fun: var
+if (var eql 2)
+then |It's_a_two!|
+else |Not_a_two|
 
 main:
-return (fst list)
+return (map fun list)
