@@ -3,8 +3,8 @@
 ## General Information
 
 "Sudo" is a strongly typed functional language created by Jacob Swisher and Zach Stermon, with help from Dr. Andrew Polonsky.
-Sudo is complete environment to compile and run "pseudocode"
-Examples of code can be found in the respective ".sudo" file
+Sudo is complete environment to compile and run "pseudocode".
+Examples of code can be found in the respective ".sudo" file.
 
 ## How to use
 
@@ -38,31 +38,53 @@ The remaining expression is converted into a return value and printed to the scr
 ## Reserved symbols
 
 "()"  = Parenthesis are used for order of operations and in creation of pairs
+
 "{}"  = Braces are used by the parser to group functions and variables, not to be used by the programmer
+
 "[]"  = Brackets denote a list
+
 ","   = Commas are special characters used in the creation of pairs, and to denote a list of arguments
+
 "."   = Periods are reserved for the creation of a floating point number
+
 "#"   = Pound symbol denotes a comment line
+
 ":"   = Colon denotes a function or variable declaration
+
 "|"   = Pipe denotes a string
 
 ## Reserved keywords
 
 "fst" = Returns the first value in a pair, or first value in a list
+
 "lst" = Returns the second value in a pair, or last value in a list
+
 "if","then","else" = tests a condition, if true returns the "then" value, if false returns the "else" value
+
 "let" = Declares an expression
+
 "add" = Adds two Integers, Floats, Strings, or Lists. (Can also add values to a list)
+
 "sub" = Subtracts two Integers or Floats
+
 "mul" = Multiplies two Integers, Floats, or can repeat a String by an Integer number of times
+
 "div" = Integer division for Integers or Floating division for Floats
+
 "mod" = Modulus of two integers
+
 "true" = Boolean true
+
 "false" = Boolean false
+
 "eql", "neql", "lt", "lte", "gt", "gte" = Comparison functions
+
 "not", "or", "and", "nor", "xor", "xnor", "nand" = Boolean functions
+
 "map" = Applies a lambda to each element in a list (map :: (a -> b) -> [a] -> [b])
+
 "index" = Returns the value of the index given in the list
+
 "main", "return" = Tells the compiler what to return
 
 
