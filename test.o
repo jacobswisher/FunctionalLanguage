@@ -1,1 +1,0 @@
-Program [("biglist",Lam "list" (Lam "counter" (If (Op Eql (Var "counter") (Lit (LInt 0))) (Var "list") (App (App (Var "biglist") (Op Add (Var "counter") (Var "list"))) (Op Sub (Var "counter") (Lit (LInt 1))))))),("l",List (Last Null))] (Pair (App (App (Var "biglist") (Var "l")) (Lit (LInt 1))) (App (App (Var "biglist") (Var "l")) (Lit (LInt 2))))

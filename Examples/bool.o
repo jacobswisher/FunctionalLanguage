@@ -1,0 +1,1 @@
+Program [("bool",If (Op Nand (Var "t") (Var "f")) (Not (Op Nor (Var "t") (Var "f"))) (Op And (Op Xnor (Var "f") (Var "f")) (Lit (LBool False)))),("f",Op (Compare Neql) (Lit (LInt 1)) (Lit (LString "Hello!"))),("t",Op (Compare Gte) (Lit (LInt 1000)) (Lit (LInt 1)))] (Op Xor (Op Or (Var "bool") (Var "f")) (Var "t"))

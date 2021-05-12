@@ -14,6 +14,7 @@ data Expr
   | Fst Expr
   | Lst Expr
   | Map Expr Expr
+  | Not Expr
   | Null
   deriving (Eq, Ord, Read, Show)
 
@@ -37,8 +38,14 @@ data Lit
   | LFloat  Double
   deriving (Show, Eq, Ord, Read)
 
-data Binop = Add | Sub | Mul | Div | Mod | Eql | Ind
+data Binop = Add | Sub | Mul | Div
+           | Mod | Ind | Or
+           | Xor | And | Nand
+           | Nor | Xnor
+           | Compare Comp
   deriving (Eq, Ord, Show, Read)
+
+data Comp = Eql | Neql | Lt | Lte | Gt | Gte deriving (Eq, Ord, Show, Read)
 
 
 data Program = Program [Decl] Expr

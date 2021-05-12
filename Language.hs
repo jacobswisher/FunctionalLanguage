@@ -20,6 +20,8 @@ cbn ds (App e1 e2) = case cbn ds e1 of
   e           -> cbn ds (App e e2)
 
 cbn ds lam@(Lam n1 e1)     = lam
+cbn ds (Not (Lit (LBool val))) = Lit (LBool (not val))
+cbn ds (Not e)             = cbn ds $ Not $ cbn ds e
 cbn ds (Let n1 e1 e2)      = cbn ds (substExpr (n1, e1) e2)
 cbn ds lit@(Lit _)         = lit
 cbn ds (If e1 e2 e3)       = case cbn ds e1 of
@@ -28,8 +30,8 @@ cbn ds (If e1 e2 e3)       = case cbn ds e1 of
                                  _                 -> Null
 cbn ds (Fix e1)           = cbn ds (App e1 $ Fix e1)
 cbn ds (Op b1 e1 e2)      = binop b1 (cbn ds e1) (cbn ds e2)
-cbn ds (List (Last e))    = List (Last (cbn ds e))
-cbn ds (List (Data e l))  = List (Data (cbn ds e) (unList (cbn ds (List l))))
+cbn ds (List (Last e))    = List $ Last (cbn ds e)
+cbn ds (List (Data e l))  = List $ Data (cbn ds e) (unList (cbn ds (List l)))
 cbn ds (Pair e1 e2) = Pair (cbn ds e1) (cbn ds e2)
 cbn ds (Fst e) = case cbn ds e of
                     Pair e1 e2      -> cbn ds e1
@@ -41,32 +43,33 @@ cbn ds (Lst e) = case cbn ds e of
                     List (Last e)   -> cbn ds e
                     List (Data e l) -> cbn ds (Lst (List l))
                     _               -> Null
-cbn ds (Map e1 (Var name)) = cbn ds (Map e1 (cbn ds (Var name)))
 cbn ds (Map e1 (List (Last val)))   = List $ Last (cbn ds (App lam element))
   where lam = cbn ds e1
         element = cbn ds val
 cbn ds (Map e1 (List (Data val l))) = List $ Data (cbn ds (App lam element)) (unList (cbn ds (Map lam (List l))))
   where lam = cbn ds e1
         element = cbn ds val
-cbn ds e = error("Cbn error" ++ show ds ++ show e)
-
+cbn ds (Map e1 e2) = cbn ds (Map e1 (cbn ds e2))
 
 
 binop :: Binop -> Expr -> Expr -> Expr
 binop Add (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 + val2
 binop Add (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 + val2
-binop Add (Lit (LInt val1))    (List (Last Null))   = List (Last (Lit (LInt val1)))
-binop Add (Lit (LFloat val1))  (List (Last Null))   = List (Last (Lit (LFloat val1)))
-binop Add (Lit (LBool val1))   (List (Last Null))   = List (Last (Lit (LBool val1)))
-binop Add (Lit (LString val1)) (List (Last Null))   = List (Last (Lit (LString val1)))
-binop Add (Lit (LInt val1))    (List l)             = List (Data (Lit (LInt val1)) l)
-binop Add (Lit (LFloat val1))  (List l)             = List (Data (Lit (LFloat val1)) l)
-binop Add (Lit (LBool val1))   (List l)             = List (Data (Lit (LBool val1)) l)
-binop Add (Lit (LString val1)) (List l)             = List (Data (Lit (LString val1)) l)
+binop Add (Lit (LInt val1))    (List (Last Null))   = List $ Last $ Lit (LInt val1)
+binop Add (Lit (LFloat val1))  (List (Last Null))   = List $ Last $ Lit (LFloat val1)
+binop Add (Lit (LBool val1))   (List (Last Null))   = List $ Last $ Lit (LBool val1)
+binop Add (Lit (LString val1)) (List (Last Null))   = List $ Last $ Lit (LString val1)
+binop Add (Lit (LInt val1))    (List l)             = List $ Data (Lit (LInt val1)) l
+binop Add (Lit (LFloat val1))  (List l)             = List $ Data (Lit (LFloat val1)) l
+binop Add (Lit (LBool val1))   (List l)             = List $ Data (Lit (LBool val1)) l
+binop Add (Lit (LString val1)) (List l)             = List $ Data (Lit (LString val1)) l
+binop Add (List (Last e))      (List l)             = List $ Data e l
+binop Add (List (Data e l1))   (List l2)            = List $ Data e $ unList $ binop Add (List l1) (List l2)
 binop Add (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteger val1) + val2
 binop Add (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 + (fromInteger val2)
 binop Add (Lit (LString val1)) (Lit (LString val2)) = Lit . LString $ val1 ++ val2
 binop Sub (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 - val2
+binop Sub (Lit (LString val1)) (Lit (LInt val2))    = Lit . LString $ drop (fromIntegral val2) val1
 binop Sub (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 - val2
 binop Sub (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteger val1) - val2
 binop Sub (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 - (fromInteger val2)
@@ -80,12 +83,42 @@ binop Div (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LFloat  $ (fromInteg
 binop Div (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LFloat  $ val1 / (fromInteger val2)
 binop Div (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 `div` val2
 binop Mod (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 `mod` val2
-binop Eql (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool   $ (fromInteger val1) == val2
-binop Eql (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool   $ val1 == (fromInteger val2)
-binop Eql e1 e2                                     = Lit . LBool   $ e1 == e2
+binop And (Lit (LBool val1))   (Lit (LBool val2))   = Lit . LBool   $ val1 && val2
+binop Or  (Lit (LBool val1))   (Lit (LBool val2))   = Lit . LBool   $ val1 || val2
+binop Xor (Lit (LBool val1))   (Lit (LBool val2))   = Lit . LBool   $ val1 /= val2
+binop Nor (Lit (LBool val1))   (Lit (LBool val2))   = Lit . LBool   $ not $ val1 || val2
+binop Xnor (Lit (LBool val1))  (Lit (LBool val2))   = Lit . LBool  $ val1 == val2
+binop Nand (Lit (LBool val1))  (Lit (LBool val2))   = Lit . LBool   $ not $ val1 && val2
 binop Ind (List (Last val1)) (Lit (LInt val2))      = if val2 == 0 then val1 else Null
 binop Ind (List (Data val1 l)) (Lit (LInt val2))    = if val2 == 0 then val1 else binop Ind (List l) (Lit (LInt (val2-1)))
+binop (Compare c) e1 e2                             = compBinop (Compare c) e1 e2
 binop _ _ _                                         = Null
+
+compBinop :: Binop -> Expr -> Expr -> Expr
+compBinop (Compare Eql) (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool   $ (fromInteger val1) == val2
+compBinop (Compare Eql) (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool   $ val1 == (fromInteger val2)
+compBinop (Compare Eql) e1 e2                                     = Lit . LBool   $ e1 == e2
+compBinop (Compare Neql) (Lit (LInt val1))    (Lit (LFloat val2)) = Lit . LBool   $ (fromInteger val1) /= val2
+compBinop (Compare Neql) (Lit (LFloat val1))  (Lit (LInt val2))   = Lit . LBool   $ val1 /= (fromInteger val2)
+compBinop (Compare Neql) e1 e2                                    = Lit . LBool   $ e1 /= e2
+compBinop (Compare Lt ) (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool   $ (fromInteger val1) < val2
+compBinop (Compare Lt ) (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool   $ val1 < (fromInteger val2)
+compBinop (Compare Lt ) (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LBool   $ val1 < val2
+compBinop (Compare Lt ) (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LBool   $ val1 < val2
+compBinop (Compare Lte) (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool   $ (fromInteger val1) <= val2
+compBinop (Compare Lte) (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool   $ val1 <= (fromInteger val2)
+compBinop (Compare Lte) (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LBool   $ val1 <= val2
+compBinop (Compare Lte) (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LBool   $ val1 <= val2
+compBinop (Compare Gt ) (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool   $ (fromInteger val1) > val2
+compBinop (Compare Gt ) (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool   $ val1 > (fromInteger val2)
+compBinop (Compare Gt ) (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LBool   $ val1 > val2
+compBinop (Compare Gt ) (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LBool   $ val1 > val2
+compBinop (Compare Gte) (Lit (LInt val1))    (Lit (LFloat val2))  = Lit . LBool   $ (fromInteger val1) >= val2
+compBinop (Compare Gte) (Lit (LFloat val1))  (Lit (LInt val2))    = Lit . LBool   $ val1 >= (fromInteger val2)
+compBinop (Compare Gte) (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LBool   $ val1 >= val2
+compBinop (Compare Gte) (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LBool   $ val1 >= val2
+compBinop _ _ _ = Null
+
 
 unList :: Expr -> List
 unList (List l) = l
@@ -104,6 +137,7 @@ fv (Let name e1 e2)  = nub $ (fv e1) ++ (filter p (fv e2))
 fv (Pair e1 e2)      = nub $ (fv e1) ++ (fv e2)
 fv (Fst e)           = fv e
 fv (Lst e)           = fv e
+fv e                 = []
 
 ftv :: Type -> [TVar]
 ftv (TVar tvar)  = [(tvar)]
@@ -128,6 +162,7 @@ unTV (TV name) = name
 
 
 substExpr :: (Name, Expr) -> Expr -> Expr
+substExpr _ Null = Null
 substExpr (name, e1) (Var name') | name == name' = e1
                                  | otherwise     = Var name'
 substExpr p (App e1 e2) = App (substExpr p e1) (substExpr p e2)
@@ -144,12 +179,13 @@ substExpr p@(n1,e1) (Let n2 e2 e3)  | n2 /= n1 && (not $ (TV n2) `elem` (fv e1))
                                     | otherwise = Let n3 (substExpr p e2) (substExpr p (substExpr (n2, Var n3) e3))
                                        where n3 = fresh n1 (map unTV (fv e1 ++ fv e2))
 substExpr p (Pair e1 e2) = Pair (substExpr p e1) (substExpr p e2)
-substExpr p (Fst e)      = Fst  $ (substExpr p e)
-substExpr p (Lst e)      = Lst  $ (substExpr p e)
+substExpr p (Fst e)      = Fst  $ substExpr p e
+substExpr p (Lst e)      = Lst  $ substExpr p e
 substExpr p (List (Last e))   = List $ Last (substExpr p e)
 substExpr p (List (Data e l)) = List $ Data (substExpr p e) (unList (substExpr p (List l)))
 substExpr p (Map fun list)    = Map  (substExpr p fun) (substExpr p list)
-substExpr p e = error("couldn't substitute expression in " ++ show p ++ show e)
+substExpr p (Not e)           = Not $ substExpr p e
+-- substExpr p e = error("couldn't substitute expression in " ++ show p ++ show e)
 
 substType :: (TVar, Type) -> Type -> Type
 substType (t1, tp) (TVar t2) | t1 == t2  = tp
