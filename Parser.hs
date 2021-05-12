@@ -38,13 +38,13 @@ toReturn (Lit lit) = case lit of
                         (LBool i)   -> Boolean i
                         (LFloat i)  -> Float i
                         (LString i) -> String i
-toReturn (Pair e1 e2)        = Set (toReturn e1) (toReturn e2)
+toReturn (Pair e1 e2)        = Set ((toReturn e1), (toReturn e2))
 toReturn (List (Data e l))   = Array $ [toReturn e] ++ (unRList $ toReturn (List l))
 toReturn (List (Last e))     = Array $ [toReturn e]
 toReturn e = Expression e
 
 data Return = Integer Integer | String String | Float Double | Boolean Bool
-          | Set Return Return | Expression Expr | Array [Return] deriving Show
+          | Set (Return, Return) | Expression Expr | Array [Return] deriving Show
 
 data Token = VSym String | LSym Lit | OpSym Binop | LBracket | RBracket
           | LBrace | RBrace | LPar | RPar | Colon | Comma
@@ -69,6 +69,7 @@ sr :: [Token] -> [Token] -> [Decl]
 sr (LSym lit:xs) i                                        = sr (ParsedExpr (Lit lit):xs) i
 sr (ParsedExpr e1:OpSym binop:ParsedExpr e2:xs) i         = sr (ParsedExpr (Op binop e2 e1):xs) i
 sr (RPar:ParsedExpr e1:Comma:ParsedExpr e2:LPar:xs) i     = sr (ParsedExpr (Pair e2 e1):xs) i
+sr (RBracket:LBracket:xs) i                               = sr (ParsedExpr (List (Last Null)):xs) i
 sr (RBracket:ParsedExpr (List l):LBracket:xs) i           = sr (ParsedExpr (List l):xs) i
 sr (RBracket:ParsedExpr e:LBracket:xs) i                  = sr (ParsedExpr (List (Last e)):xs) i
 sr (RBracket:ParsedExpr (List l):Comma:ParsedExpr e:xs) i = sr (RBracket:ParsedExpr (List (Data e l)):xs) i

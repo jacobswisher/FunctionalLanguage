@@ -8,6 +8,7 @@ import Data.Maybe
 
 
 cbn :: [Decl] -> Expr -> Expr
+cbn ds Null = Null
 cbn ds (Var name) = case lookup name ds of
   Just e           -> cbn ds e
   _                -> Null
@@ -54,6 +55,10 @@ cbn ds e = error("Cbn error" ++ show ds ++ show e)
 binop :: Binop -> Expr -> Expr -> Expr
 binop Add (Lit (LInt val1))    (Lit (LInt val2))    = Lit . LInt    $ val1 + val2
 binop Add (Lit (LFloat val1))  (Lit (LFloat val2))  = Lit . LFloat  $ val1 + val2
+binop Add (Lit (LInt val1))    (List (Last Null))   = List (Last (Lit (LInt val1)))
+binop Add (Lit (LFloat val1))  (List (Last Null))   = List (Last (Lit (LFloat val1)))
+binop Add (Lit (LBool val1))   (List (Last Null))   = List (Last (Lit (LBool val1)))
+binop Add (Lit (LString val1)) (List (Last Null))   = List (Last (Lit (LString val1)))
 binop Add (Lit (LInt val1))    (List l)             = List (Data (Lit (LInt val1)) l)
 binop Add (Lit (LFloat val1))  (List l)             = List (Data (Lit (LFloat val1)) l)
 binop Add (Lit (LBool val1))   (List l)             = List (Data (Lit (LBool val1)) l)
@@ -141,6 +146,10 @@ substExpr p@(n1,e1) (Let n2 e2 e3)  | n2 /= n1 && (not $ (TV n2) `elem` (fv e1))
 substExpr p (Pair e1 e2) = Pair (substExpr p e1) (substExpr p e2)
 substExpr p (Fst e)      = Fst  $ (substExpr p e)
 substExpr p (Lst e)      = Lst  $ (substExpr p e)
+substExpr p (List (Last e))   = List $ Last (substExpr p e)
+substExpr p (List (Data e l)) = List $ Data (substExpr p e) (unList (substExpr p (List l)))
+substExpr p (Map fun list)    = Map  (substExpr p fun) (substExpr p list)
+substExpr p e = error("couldn't substitute expression in " ++ show p ++ show e)
 
 substType :: (TVar, Type) -> Type -> Type
 substType (t1, tp) (TVar t2) | t1 == t2  = tp
