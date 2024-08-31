@@ -86,10 +86,3 @@ The remaining expression is converted into a return value and printed to the scr
 "index" = Returns the value of the index given in the list
 
 "main", "return" = Tells the compiler what to return
-
-
-
-## Known bugs
-
-1. Multi-Dimensional lists are currently buggy, only the first element in a list can be a list
-2. "Let" does not work
