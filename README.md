@@ -1,4 +1,4 @@
-# FunctionalLanguage
+# Functional Language
 
 ## General Information
 
@@ -8,10 +8,10 @@ Examples of code can be found in the respective ".sudo" file.
 
 ## How to use
 
-To use Sudo, simply create a program in a ".sudo" file.
-Next, GHCI into Parser.hs.
-Finally, compile your program into an object file by typing (compile "infile.sudo" "outfile.o") (Use double quotes around the filenames)
-If you wish to run your program, type (run "outfile.o") in GHCI
+To use Sudo, simply create a program in a ".sudo" file (Examples can be found in the "Examples" folder).
+Next, use the GHCI into Parser.hs.
+Finally, compile your program into an object file by typing `compile "infile.sudo" "outfile.o"` (Use double quotes around the filenames).
+If you wish to run your program, type `run "outfile.o"` in GHCI.
 That't it, you may see that your program returned a null value if there is a bug in the code,
 otherwise you should see a return value appear.
 
